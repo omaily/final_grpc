@@ -4,7 +4,7 @@
 // - protoc             v5.29.1
 // source: exchange/exchange.proto
 
-package final_grpc
+package __
 
 import (
 	context "context"
