@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  app:
+    container_name: autstore
+    image: autstore
+    build: 
+      context: . #путь до докерфайла
+      dockerfile: Dockerfile #Сам файл
+      target: autstore #этап FROM в Dockerfile 
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - webnet
+    links: #связывает контейнер app контейнером db
+      - db
+    depends_on: #ожидаем запуска образа базы
+      - db
+  db:
+    container_name: autstore-db
+    image: postgres:latest
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./pkg/postgre_init.sql:/docker-entrypoint-initdb.d/1-init.sql
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    networks:
+      - webnet
+
+volumes:
+  postgres_data:
+
+networks:
+  webnet:

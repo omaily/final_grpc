@@ -1,0 +1,13 @@
+env: "local" #local, dev, prod
+storage_path: "./storage/storage.db"
+http_server: 
+  address: "localhost"
+  port: ":8080"
+  timeout: 5s 
+  idle_timeout: 120s
+storage:
+  host: "db"
+  port: 5432
+  database: "score"
+  user: "user"
+  pass: "puser"
