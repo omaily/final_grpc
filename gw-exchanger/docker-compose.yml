@@ -10,7 +10,7 @@ services:
       target: autstore #этап FROM в Dockerfile 
     restart: always
     ports:
-      - 8080:8080
+      - 8081:8081
     networks:
       local-network: 
         ipv4_address: 172.16.0.11

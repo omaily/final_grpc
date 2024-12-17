@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  app:
+    container_name: wallet
+    image: wallet
+    build: 
+      context: . #путь до докерфайла
+      dockerfile: Dockerfile #Сам файл
+      target: wallet #этап FROM в Dockerfile 
+    restart: always
+    ports:
+      - 8080:8080
+
+networks:
+  default:
+    external:
+      name: gw-exchanger_local-network
+    

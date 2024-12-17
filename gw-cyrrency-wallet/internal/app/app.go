@@ -10,15 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/omaily/final_grpc/gw-exchanger/config"
-	"github.com/omaily/final_grpc/gw-exchanger/internal/controller"
-	"github.com/omaily/final_grpc/gw-exchanger/internal/storage"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/controller"
 )
 
 type App struct {
-	conf    *config.Config
-	storage *storage.Connector
-	server  *controller.Http
+	conf   *config.Config
+	server *controller.Http
 }
 
 func New(ctx context.Context, conf *config.Config) (*App, error) {
@@ -41,7 +39,7 @@ func (a *App) Run() error {
 	defer cancel()
 
 	if err := a.start(ctx); err != nil {
-		slog.Error("could not initialize server: %s", slog.Any("error", err))
+		slog.Error("could not initialize server: %s", err)
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -56,22 +54,17 @@ func (a *App) Run() error {
 }
 
 func (a *App) start(ctx context.Context) error {
-	storage := storage.New(a.conf.Storage)
-	if err := storage.Start(ctx); err != nil {
-		return fmt.Errorf("could not initialize storage: %s", err)
-	}
-	a.storage = storage
-
-	ctrl := controller.New(a.conf.HTTPServer, storage)
-	if err := ctrl.Start(ctx); err != nil {
+	listener := controller.New(a.conf.HTTPServer)
+	if err := listener.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize controller: %s", err)
 	}
-	a.server = ctrl
+	a.server = listener
 
 	return nil
 }
 
-func (a *App) stop(_ context.Context) error {
+func (a *App) stop(ctx context.Context) error {
 	slog.Info("process shutting down service...")
+
 	return nil
 }
