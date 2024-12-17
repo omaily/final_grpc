@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-exchanger/config"
-	h "github.com/omaily/final_grpc/gw-exchanger/internal/delivery"
 	"github.com/omaily/final_grpc/gw-exchanger/internal/storage"
 )
 
@@ -41,12 +40,4 @@ func (s *Http) Start(cxt context.Context) error {
 	}()
 
 	return nil
-}
-
-func (s *Http) router() http.Handler {
-	router := http.NewServeMux()
-	router.HandleFunc("POST /api/v1/wallet", h.PostWallet(s.storage))
-	router.HandleFunc("GET /api/v1/wallets/{uuid}", h.GetWallet(s.storage))
-
-	return router
 }
