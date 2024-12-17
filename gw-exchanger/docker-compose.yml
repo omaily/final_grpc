@@ -12,7 +12,8 @@ services:
     ports:
       - 8080:8080
     networks:
-      - webnet
+      local-network: 
+        ipv4_address: 172.16.0.11
     links: #связывает контейнер app контейнером db
       - db
     depends_on: #ожидаем запуска образа базы
@@ -31,10 +32,17 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     networks:
-      - webnet
+      local-network: 
+        ipv4_address: 172.16.0.52
 
 volumes:
   postgres_data:
 
 networks:
-  webnet:
+  local-network:
+    driver: bridge
+    attachable: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.0.0/16
