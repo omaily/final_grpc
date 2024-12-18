@@ -63,7 +63,7 @@ func (a *App) start(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) stop(ctx context.Context) error {
+func (a *App) stop(_ context.Context) error {
 	slog.Info("process shutting down service...")
 
 	return nil
