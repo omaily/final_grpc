@@ -7,15 +7,18 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 type Http struct {
-	conf *config.HTTPServer
+	conf    *config.HTTPServer
+	storage *storage.Connector
 }
 
 func New(conf config.HTTPServer) *Http {
 	return &Http{
-		conf: &conf,
+		conf:    &conf,
+		storage: storage.NewConnector(),
 	}
 }
 

@@ -5,16 +5,24 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/auth"
 )
 
 func MiddlewareOne() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Print("Executing middlewareOne")
-	}
-}
+		token := c.GetHeader("Authorization")
+		if token == "" {
+			c.JSON(http.StatusOK, gin.H{"message": "request does not contain an access token"})
+			return
+		}
 
-func middlewareTwo(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Print("Executing middleware  Two")
-	})
+		err := auth.ValidateToken(token)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"error": err})
+			return
+		}
+
+		log.Print(token)
+	}
 }

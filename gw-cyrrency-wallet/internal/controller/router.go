@@ -6,24 +6,25 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 func (s *Http) router() http.Handler {
 	router := gin.Default()
 
-	public(router) // Публичные маршруты
-	secure(router)
+	public(router, s.storage) // Публичные маршруты
+	secure(router, s.storage)
 
 	router.Run()
 	return router
 }
 
-func public(router *gin.Engine) {
-	router.POST("/api/v1/register", register)
+func public(router *gin.Engine, st *storage.Connector) {
+	router.POST("/api/v1/register", register(st))
 	router.POST("/api/v1/login", login)
 }
 
-func secure(router *gin.Engine) {
+func secure(router *gin.Engine, st *storage.Connector) {
 	gr := router.Group("")
 	gr.Use(midleware.MiddlewareOne())
 
