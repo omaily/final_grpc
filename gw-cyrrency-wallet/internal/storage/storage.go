@@ -1,12 +1,13 @@
 package storage
 
-type Connector struct {
+type Instance struct {
 	databaza string
 	Users    []*Account
+	Ex       Exchange
 }
 
-func NewConnector() *Connector {
-	return &Connector{
+func NewConnector() *Instance {
+	return &Instance{
 		databaza: "postgre",
 
 		Users: []*Account{{
@@ -22,7 +23,7 @@ func NewConnector() *Connector {
 	}
 }
 
-func (st *Connector) CreateAccount(name, pass string) bool {
+func (st *Instance) CreateAccount(name, pass string) bool {
 	user := &Account{
 		username: name,
 		password: pass,
@@ -31,9 +32,9 @@ func (st *Connector) CreateAccount(name, pass string) bool {
 	return true
 }
 
-func (st *Connector) FindAccount(name, pass string) bool {
+func (st *Instance) FindAccount(name, pass string) bool {
 	for _, ak := range st.Users {
-		if ak.username == name {
+		if ak.username == name && ak.password == pass {
 			return true
 		}
 	}

@@ -19,12 +19,12 @@ func (s *Http) router() http.Handler {
 	return router
 }
 
-func public(router *gin.Engine, st *storage.Connector) {
+func public(router *gin.Engine, st *storage.Instance) {
 	router.POST("/api/v1/register", register(st))
-	router.POST("/api/v1/login", login)
+	router.POST("/api/v1/login", login(st))
 }
 
-func secure(router *gin.Engine, st *storage.Connector) {
+func secure(router *gin.Engine, st *storage.Instance) {
 	gr := router.Group("")
 	gr.Use(midleware.MiddlewareOne())
 

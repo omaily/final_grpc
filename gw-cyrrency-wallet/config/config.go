@@ -9,10 +9,9 @@ import (
 )
 
 type Config struct {
-	Env         string `yaml:"env" env:"ENV" env-default:"local"`
-	StoragePath string `yaml:"storage_path" env-required:"true"`
-	HTTPServer  `yaml:"http_server"`
-	Storage     `yaml:"storage"`
+	Env        string `yaml:"env" env:"ENV" env-default:"local"`
+	HTTPServer `yaml:"http_server"`
+	Storage    `yaml:"storage"`
 }
 
 type Storage struct {
@@ -38,7 +37,7 @@ func MustLoad() *Config {
 		slog.Info("read application configuration")
 		cfg = Config{}
 		if err := cleanenv.ReadConfig("config/config.yml", &cfg); err != nil {
-			slog.Error("cannot read config: %s", err)
+			slog.Error("cannot read config: ", slog.String("error", err.Error()))
 		}
 	})
 	return &cfg

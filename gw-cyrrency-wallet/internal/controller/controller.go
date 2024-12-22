@@ -12,13 +12,13 @@ import (
 
 type Http struct {
 	conf    *config.HTTPServer
-	storage *storage.Connector
+	storage *storage.Instance //убрать
 }
 
 func New(conf config.HTTPServer) *Http {
 	return &Http{
 		conf:    &conf,
-		storage: storage.NewConnector(),
+		storage: storage.NewConnector(), //убрать
 	}
 }
 

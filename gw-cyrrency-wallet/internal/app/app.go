@@ -4,19 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/controller"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 type App struct {
-	conf   *config.Config
-	server *controller.Http
+	conf       *config.Config
+	storage    *storage.Instance
+	serverHttp *controller.Http
+	serverGrpc *connector.ServerGrpc
 }
 
 func New(ctx context.Context, conf *config.Config) (*App, error) {
@@ -30,7 +36,9 @@ func New(ctx context.Context, conf *config.Config) (*App, error) {
 	}
 
 	return &App{
-		conf: conf,
+		conf:       conf,
+		storage:    storage.NewConnector(),
+		serverGrpc: connector.New(),
 	}, nil
 }
 
@@ -39,7 +47,7 @@ func (a *App) Run() error {
 	defer cancel()
 
 	if err := a.start(ctx); err != nil {
-		slog.Error("could not initialize server: %s", err)
+		slog.Error("could not initialize server: %s", slog.String("error", err.Error()))
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -54,11 +62,23 @@ func (a *App) Run() error {
 }
 
 func (a *App) start(ctx context.Context) error {
+	//start grpc service
+	lis, err := net.Listen("tcp", ":8081")
+	if err != nil {
+		log.Fatalf("failed to listen on port 8081: %v", err)
+	}
+
+	log.Printf("gRPC-сервер прослушивает %v", lis.Addr())
+	if err := a.serverGrpc.Serve(lis); err != nil {
+		log.Fatalf("не удалось обслужить: %v", err)
+	}
+
+	//start http service
 	listener := controller.New(a.conf.HTTPServer)
 	if err := listener.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize controller: %s", err)
 	}
-	a.server = listener
+	a.serverHttp = listener
 
 	return nil
 }

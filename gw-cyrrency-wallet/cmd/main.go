@@ -16,7 +16,7 @@ func main() {
 
 	app, err := app.New(context.Background(), conf)
 	if err != nil {
-		slog.Error("could not initialize server: %w", err)
+		slog.Error("could not initialize server: %w", slog.String("error", err.Error()))
 		return
 	}
 
