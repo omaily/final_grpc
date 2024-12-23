@@ -7,18 +7,21 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 type Http struct {
-	conf    *config.HTTPServer
-	storage *storage.Instance //убрать
+	conf       *config.HTTPServer
+	storage    *storage.Instance //убрать
+	clientGrpc *connector.GrpcClient
 }
 
 func New(conf config.HTTPServer) *Http {
 	return &Http{
-		conf:    &conf,
-		storage: storage.NewConnector(), //убрать
+		conf:       &conf,
+		storage:    storage.NewConnector(), //убрать
+		clientGrpc: connector.New("server:8081"),
 	}
 }
 
@@ -39,4 +42,9 @@ func (s *Http) Start(cxt context.Context) error {
 	}()
 
 	return nil
+}
+
+func (s *Http) Stop() {
+	s.clientGrpc.Stop()
+	slog.Info("...down http_server")
 }

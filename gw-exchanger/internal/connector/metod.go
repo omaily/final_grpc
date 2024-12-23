@@ -3,7 +3,7 @@ package connector
 import (
 	"context"
 
-	exchange "github.com/omaily/final_grpc/gw-cyrrency-wallet/gen"
+	exchange "github.com/omaily/final_grpc/gw-exchanger/pkg/gen"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

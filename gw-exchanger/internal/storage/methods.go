@@ -3,12 +3,13 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Connector) GetAmount(ctx context.Context, uuid string) (int, error) {
+func (s *Instance) GetAmount(ctx context.Context, uuid string) (int, error) {
 	query := `select amount from account where uuid = $1`
 	var cash int
 	row := s.pool.QueryRow(ctx, query, uuid)
@@ -21,7 +22,7 @@ func (s *Connector) GetAmount(ctx context.Context, uuid string) (int, error) {
 	return cash, nil
 }
 
-func (s *Connector) DepositPay(ctx context.Context, uuid string, amount int) error {
+func (s *Instance) DepositPay(ctx context.Context, uuid string, amount int) error {
 	cash, err := s.GetAmount(ctx, uuid)
 	if err != nil {
 		return err
@@ -56,7 +57,7 @@ func (s *Connector) DepositPay(ctx context.Context, uuid string, amount int) err
 	return nil
 }
 
-func (s *Connector) WithdrawPay(ctx context.Context, uuid string, amount int) error {
+func (s *Instance) WithdrawPay(ctx context.Context, uuid string, amount int) error {
 
 	cash, err := s.GetAmount(ctx, uuid)
 	if err != nil {
@@ -94,4 +95,17 @@ func (s *Connector) WithdrawPay(ctx context.Context, uuid string, amount int) er
 
 	slog.Info("user withdrawPay", slog.String("user", uuid))
 	return nil
+}
+
+func (ex *Exchange) Exchanges(ctx context.Context) (map[string]float64, error) {
+	slog.Info("metod Exchanges")
+	rate := map[string]float64{}
+	return rate, nil
+}
+
+func (ex *Exchange) Exchange(
+	ctx context.Context, from_currency string, to_currency string,
+) (int, error) {
+	slog.Info("metod Exchange")
+	return 11, fmt.Errorf("empty")
 }

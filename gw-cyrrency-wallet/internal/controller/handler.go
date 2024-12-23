@@ -1,12 +1,19 @@
 package controller
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
+	"google.golang.org/grpc"
+
+	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/gen"
 )
 
 func register(st *storage.Instance) gin.HandlerFunc {
@@ -83,22 +90,39 @@ func withdraw(c *gin.Context) {
 	}
 }
 
-func rates(c *gin.Context) {
-	status := true
-
-	if status {
+func rates(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		r, err := (*clientGrpc.Client).GetExchangeRates(context.Background(), &pb.Empty{})
+		if err != nil {
+			slog.Error("Не удалось создать: отправить Rates: ", slog.String("error", err.Error()))
+			c.JSON(http.StatusBadRequest, gin.H{"message": err})
+			return
+		}
+		fmt.Println("return map:", r)
 		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST RATES"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "error"})
 	}
 }
 
-func exchange(c *gin.Context) {
-	status := true
+func exchange(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		conn, err := grpc.Dial("server:8081", grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("Не могу подключиться: %v", err)
+		}
+		defer conn.Close()
+		client := pb.NewExchangeServiceClient(conn)
 
-	if status {
+		r, err := client.GetExchangeRate(context.Background(), &pb.CurrencyRequest{
+			FromCurrency: "usd",
+			ToCurrency:   "rub",
+		})
+		if err != nil {
+			slog.Error("Не удалось создать: отправить Rate", slog.String("error", err.Error()))
+			c.JSON(http.StatusBadRequest, gin.H{"message": err})
+			return
+		}
+
+		slog.Info("from: %v, to: %v, rate: %f", r.FromCurrency, r.ToCurrency, r.Rate)
 		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST EXCHANGE"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "error"})
 	}
 }

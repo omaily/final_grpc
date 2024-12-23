@@ -1,22 +1,34 @@
 package connector
 
 import (
+	"log/slog"
+
 	"google.golang.org/grpc"
 
-	exchange "github.com/omaily/final_grpc/gw-cyrrency-wallet/gen"
-
-	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
+	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/gen"
 )
 
-type ServerGrpc struct {
-	*grpc.Server
+type GrpcClient struct {
+	conf   string
+	Conn   *grpc.ClientConn
+	Client *pb.ExchangeServiceClient
 }
 
-func New() *ServerGrpc {
-	server := grpc.NewServer()
-	st := &storage.Exchange{}
+func New(address string) *GrpcClient {
+	lis, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		slog.Error("Не могу подключиться: %v", slog.String("error", err.Error()))
+	}
 
-	exchange.RegisterExchangeServiceServer(server, &grpcConnector{sex: st})
+	client := pb.NewExchangeServiceClient(lis)
+	return &GrpcClient{
+		conf:   address,
+		Conn:   lis,
+		Client: &client,
+	}
+}
 
-	return &ServerGrpc{server}
+func (c *GrpcClient) Stop() {
+	c.Conn.Close()
+	slog.Info("...down grpc connector")
 }

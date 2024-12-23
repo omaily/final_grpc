@@ -4,21 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/omaily/final_grpc/gw-exchanger/config"
-	"github.com/omaily/final_grpc/gw-exchanger/internal/controller"
+	"github.com/omaily/final_grpc/gw-exchanger/internal/connector"
 	"github.com/omaily/final_grpc/gw-exchanger/internal/storage"
 )
 
 type App struct {
-	conf    *config.Config
-	storage *storage.Connector
-	server  *controller.Http
+	conf       *config.Config
+	storage    *storage.Instance
+	serverGrpc *connector.ServerGrpc
 }
 
 func New(ctx context.Context, conf *config.Config) (*App, error) {
@@ -26,13 +28,9 @@ func New(ctx context.Context, conf *config.Config) (*App, error) {
 		return nil, errors.New("configuration files are not initialized")
 	}
 
-	http := &conf.HTTPServer
-	if http.Address == "" || http.Port == "" {
-		return nil, errors.New("configuration address cannot be blank")
-	}
-
 	return &App{
-		conf: conf,
+		conf:       conf,
+		serverGrpc: connector.New(),
 	}, nil
 }
 
@@ -62,11 +60,15 @@ func (a *App) start(ctx context.Context) error {
 	}
 	a.storage = storage
 
-	ctrl := controller.New(a.conf.HTTPServer, storage)
-	if err := ctrl.Start(ctx); err != nil {
-		return fmt.Errorf("could not initialize controller: %s", err)
+	lis, err := net.Listen("tcp", ":8081")
+	if err != nil {
+		log.Fatalf("failed to listen on port 8081: %v", err)
 	}
-	a.server = ctrl
+	log.Printf("gRPC-сервер прослушивает %v", lis.Addr())
+
+	if err := a.serverGrpc.Serve(lis); err != nil {
+		log.Fatalf("не удалось обслужить: %v", err)
+	}
 
 	return nil
 }

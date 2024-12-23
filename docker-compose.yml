@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  app:
+  client:
     container_name: wallet
     image: wallet
     build: 
@@ -11,10 +11,56 @@ services:
     restart: always
     ports:
       - 8080:8080
+    networks:
+      local-network: 
+        ipv4_address: 172.16.0.10
+    links: #связывает контейнер app контейнером db
+      - server
+    depends_on: #ожидаем запуска образа базы
+      - server
+  server:
+    container_name: autstore
+    image: autstore
+    build: 
+      context: . #путь до докерфайла
+      dockerfile: Dockerfile #Сам файл
+      target: autstore #этап FROM в Dockerfile 
+    restart: always
+    ports:
       - 8081:8081
+    networks:
+      local-network: 
+        ipv4_address: 172.16.0.11
+    links: #связывает контейнер app контейнером db
+      - db
+    depends_on: #ожидаем запуска образа базы
+      - db
+  db:
+    container_name: autstore-db
+    image: postgres:latest
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./gw-exchanger/pkg/postgre_init.sql:/docker-entrypoint-initdb.d/1-init.sql
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    networks:
+      local-network: 
+        ipv4_address: 172.16.0.12
 
-# networks:
-#   default:
-#     external:
-#       name: gw-exchanger_local-network
+volumes:
+  postgres_data:
+
+networks:
+  local-network:
+    driver: bridge
+    attachable: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.0.0/16
     
