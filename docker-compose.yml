@@ -16,8 +16,10 @@ services:
         ipv4_address: 172.16.0.10
     links: #связывает контейнер app контейнером db
       - server
+      - db
     depends_on: #ожидаем запуска образа базы
       - server
+      - db
   server:
     container_name: autstore
     image: autstore
@@ -26,8 +28,8 @@ services:
       dockerfile: Dockerfile #Сам файл
       target: autstore #этап FROM в Dockerfile 
     restart: always
-    ports:
-      - 8081:8081
+    # ports:
+      # - 8081:8081
     networks:
       local-network: 
         ipv4_address: 172.16.0.11
@@ -43,7 +45,7 @@ services:
       - 5432:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./gw-exchanger/pkg/postgre_init.sql:/docker-entrypoint-initdb.d/1-init.sql
+      - ./pkg/postgre_init.sql:/docker-entrypoint-initdb.d/1-init.sql
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}

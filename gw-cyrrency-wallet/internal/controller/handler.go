@@ -13,7 +13,7 @@ import (
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 	"google.golang.org/grpc"
 
-	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/gen"
+	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
 
 func register(st *storage.Instance) gin.HandlerFunc {
@@ -31,7 +31,7 @@ func register(st *storage.Instance) gin.HandlerFunc {
 			return
 		}
 
-		st.CreateAccount(json.Username, json.Password)
+		st.User.CreateAccount(json.Username, json.Password)
 		c.JSON(http.StatusOK, gin.H{"status": "you are logged in"})
 	}
 }

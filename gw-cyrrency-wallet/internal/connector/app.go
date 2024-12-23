@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/gen"
+	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
 
 type GrpcClient struct {
@@ -15,15 +15,15 @@ type GrpcClient struct {
 }
 
 func New(address string) *GrpcClient {
-	lis, err := grpc.Dial(address, grpc.WithInsecure())
+	listen, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		slog.Error("Не могу подключиться: %v", slog.String("error", err.Error()))
 	}
 
-	client := pb.NewExchangeServiceClient(lis)
+	client := pb.NewExchangeServiceClient(listen)
 	return &GrpcClient{
 		conf:   address,
-		Conn:   lis,
+		Conn:   listen,
 		Client: &client,
 	}
 }

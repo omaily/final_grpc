@@ -1,10 +1,9 @@
 FROM golang:latest as wallet
-
 RUN apt-get update && apt-get install -y curl 
 WORKDIR /app
 
 COPY ./gw-cyrrency-wallet ./
-# COPY ./proto_exchange/exchange ./proto
+COPY ./proto_exchange/exchange ./pkg/proto
 
 RUN go mod download
 RUN sh -s -- -b $(go env GOPATH)/bin
@@ -14,13 +13,11 @@ CMD ["./main"]
 
 
 FROM golang:latest as autstore
-
 RUN apt-get update && apt-get install -y curl 
 WORKDIR /app
 
-# COPY ./ ./
 COPY ./gw-exchanger ./
-# COPY ./proto_exchange/exchange ./proto
+COPY ./proto_exchange/exchange ./pkg/proto
 
 RUN go mod download
 RUN sh -s -- -b $(go env GOPATH)/bin

@@ -17,10 +17,10 @@ type Http struct {
 	clientGrpc *connector.GrpcClient
 }
 
-func New(conf config.HTTPServer) *Http {
+func New(conf config.HTTPServer, storage *storage.Instance) *Http {
 	return &Http{
 		conf:       &conf,
-		storage:    storage.NewConnector(), //убрать
+		storage:    storage,
 		clientGrpc: connector.New("server:8081"),
 	}
 }

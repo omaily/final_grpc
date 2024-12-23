@@ -32,8 +32,7 @@ func New(ctx context.Context, conf *config.Config) (*App, error) {
 	}
 
 	return &App{
-		conf:    conf,
-		storage: storage.NewConnector(),
+		conf: conf,
 	}, nil
 }
 
@@ -57,12 +56,18 @@ func (a *App) Run() error {
 }
 
 func (a *App) start(ctx context.Context) error {
+	storage := storage.New(a.conf.Storage)
+	if err := storage.Start(ctx); err != nil {
+		return fmt.Errorf("could not initialize storage: %s", err)
+	}
+	a.storage = storage
+
 	//start http service
-	listener := controller.New(a.conf.HTTPServer)
-	if err := listener.Start(ctx); err != nil {
+	server := controller.New(a.conf.HTTPServer, storage)
+	if err := server.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize controller: %s", err)
 	}
-	a.serverHttp = listener
+	a.serverHttp = server
 
 	return nil
 }
