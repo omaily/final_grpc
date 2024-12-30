@@ -17,15 +17,16 @@ type Http struct {
 	clientGrpc *connector.GrpcClient
 }
 
-func New(conf config.HTTPServer, storage *storage.Instance) *Http {
+func New(conf config.HTTPServer, storage *storage.Instance, grpc *connector.GrpcClient) *Http {
 	return &Http{
 		conf:       &conf,
 		storage:    storage,
-		clientGrpc: connector.New("server:8081"),
+		clientGrpc: grpc,
 	}
 }
 
 func (s *Http) Start(cxt context.Context) error {
+
 	srv := &http.Server{
 		Addr:         s.conf.Port,
 		Handler:      s.router(),
@@ -45,6 +46,5 @@ func (s *Http) Start(cxt context.Context) error {
 }
 
 func (s *Http) Stop() {
-	s.clientGrpc.Stop()
 	slog.Info("...down http_server")
 }

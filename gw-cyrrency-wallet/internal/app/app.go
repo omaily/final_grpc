@@ -11,14 +11,16 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/controller"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 type App struct {
 	conf       *config.Config
-	storage    *storage.Instance
 	serverHttp *controller.Http
+	clientGrpc *connector.GrpcClient
+	storage    *storage.Instance
 }
 
 func New(ctx context.Context, conf *config.Config) (*App, error) {
@@ -28,7 +30,12 @@ func New(ctx context.Context, conf *config.Config) (*App, error) {
 
 	http := &conf.HTTPServer
 	if http.Address == "" || http.Port == "" {
-		return nil, errors.New("configuration address cannot be blank")
+		return nil, errors.New("configuration address http_server cannot be blank")
+	}
+
+	grpc := &conf.GRPCServer
+	if grpc.Address == "" {
+		return nil, errors.New("configuration address grpc_server cannot be blank")
 	}
 
 	return &App{
@@ -56,14 +63,20 @@ func (a *App) Run() error {
 }
 
 func (a *App) start(ctx context.Context) error {
+
+	//start db
 	storage := storage.New(a.conf.Storage)
 	if err := storage.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize storage: %s", err)
 	}
 	a.storage = storage
 
+	//connect grpc service
+	clientGrpc := connector.New(a.conf.GRPCServer)
+	a.clientGrpc = clientGrpc
+
 	//start http service
-	server := controller.New(a.conf.HTTPServer, storage)
+	server := controller.New(a.conf.HTTPServer, storage, clientGrpc)
 	if err := server.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize controller: %s", err)
 	}
@@ -75,6 +88,7 @@ func (a *App) start(ctx context.Context) error {
 func (a *App) stop(_ context.Context) error {
 	slog.Info("process shutting down service...")
 	a.serverHttp.Stop()
+	a.clientGrpc.Stop()
 
 	return nil
 }

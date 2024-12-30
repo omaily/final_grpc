@@ -29,8 +29,7 @@ func New(ctx context.Context, conf *config.Config) (*App, error) {
 	}
 
 	return &App{
-		conf:       conf,
-		serverGrpc: connector.New(),
+		conf: conf,
 	}, nil
 }
 
@@ -59,6 +58,7 @@ func (a *App) start(ctx context.Context) error {
 		return fmt.Errorf("could not initialize storage: %s", err)
 	}
 	a.storage = storage
+	a.serverGrpc = connector.New(storage)
 
 	lis, err := net.Listen("tcp", ":8081")
 	if err != nil {

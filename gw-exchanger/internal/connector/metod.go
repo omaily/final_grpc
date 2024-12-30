@@ -2,22 +2,24 @@ package connector
 
 import (
 	"context"
+	"log/slog"
 
-	exchange "github.com/omaily/final_grpc/gw-exchanger/pkg/gen"
+	"github.com/omaily/final_grpc/gw-exchanger/internal/storage"
+	exchange "github.com/omaily/final_grpc/gw-exchanger/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type IServiceExchange interface {
-	Exchanges(
+	ExchangeRates(
 		ctx context.Context,
-	) (rates map[string]float64, err error)
+	) (rates []storage.Exchange, err error)
 
-	Exchange(
+	ExchangeRate(
 		ctx context.Context,
 		from_currency string,
 		to_currency string,
-	) (rate int, err error)
+	) (rateOdds float64, err error)
 }
 
 type grpcConnector struct {
@@ -29,19 +31,15 @@ func (con *grpcConnector) GetExchangeRates(
 	ctx context.Context,
 	in *exchange.Empty,
 ) (*exchange.RatesResponse, error) {
-
-	// заглушка
-	exchangeRate, _ := con.sex.Exchanges(ctx)
-	_ = exchangeRate
-
-	exchangeRate = map[string]float64{
-		"rub":  1,
-		"euro": 112,
-		"usd":  100,
+	exchangeRates, _ := con.sex.ExchangeRates(ctx)
+	mExchangeRates := make(map[string]float64)
+	for _, ex := range exchangeRates {
+		slog.Info("return db", slog.String("currency", ex.Note), slog.Float64("rate", ex.Rate))
+		mExchangeRates[ex.Note] = ex.Rate
 	}
 
 	return &exchange.RatesResponse{
-		Rates: exchangeRate,
+		Rates: mExchangeRates,
 	}, nil
 }
 
@@ -58,8 +56,8 @@ func (con *grpcConnector) GetExchangeRate(
 	}
 
 	// заглушка
-	exchangeRate, _ := con.sex.Exchange(ctx, in.FromCurrency, in.ToCurrency)
-	_ = exchangeRate
+	odds, _ := con.sex.ExchangeRate(ctx, in.FromCurrency, in.ToCurrency)
+	_ = odds
 
 	return &exchange.CurrencyResponse{
 		FromCurrency: "from Rub",

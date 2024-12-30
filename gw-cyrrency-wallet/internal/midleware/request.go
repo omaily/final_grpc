@@ -1,5 +1,7 @@
 package midleware
 
-import "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/model"
-
-type Login model.User
+type Login struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email,omitempty"`
+}

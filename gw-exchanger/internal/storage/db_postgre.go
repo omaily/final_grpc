@@ -11,9 +11,8 @@ import (
 )
 
 type Instance struct {
-	conf     *config.Storage
-	pool     *pgxpool.Pool
-	Exchange *Exchange
+	conf *config.Storage
+	pool *pgxpool.Pool
 }
 
 var pgOnce sync.Once

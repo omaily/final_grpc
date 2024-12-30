@@ -2,110 +2,132 @@ package storage
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Instance) GetAmount(ctx context.Context, uuid string) (int, error) {
-	query := `select amount from account where uuid = $1`
-	var cash int
-	row := s.pool.QueryRow(ctx, query, uuid)
-	err := row.Scan(&cash)
+func (db *Instance) ExchangeRates(ctx context.Context) ([]Exchange, error) {
+	slog.Info("storage no cursor, method bulk select")
+
+	query := `select note, rate from cyrrency`
+	rows, err := db.pool.Query(ctx, query)
 	if err != nil {
-		slog.Error("Error Fetching Book Details: %w", slog.String("err", err.Error()))
+		slog.Error("error while executing query:", slog.String("error", err.Error()))
+		return nil, err
+	}
+	defer rows.Close()
+
+	return pgx.CollectRows(rows, pgx.RowToStructByName[Exchange])
+}
+
+func (db *Instance) ExchangeRate(
+	ctx context.Context, from_currency string, to_currency string,
+) (float64, error) {
+	slog.Info("storage no cursor, method single select")
+
+	var fromRate, toRate float64
+	query := `select note, rate from cyrrency where note = $1`
+
+	err := db.pool.QueryRow(ctx, query, from_currency).Scan(&fromRate)
+	if err != nil {
+		slog.Error("error while executing query:", slog.String("error", err.Error()))
 		return 0, err
 	}
 
-	return cash, nil
+	err = db.pool.QueryRow(ctx, query, to_currency).Scan(&toRate)
+	if err != nil {
+		slog.Error("error while executing query:", slog.String("error", err.Error()))
+		return 0, err
+	}
+
+	return fromRate / toRate, nil
 }
 
-func (s *Instance) DepositPay(ctx context.Context, uuid string, amount int) error {
-	cash, err := s.GetAmount(ctx, uuid)
-	if err != nil {
-		return err
-	}
+// func (s *Instance) GetAmount(ctx context.Context, uuid string) (int, error) {
+// 	query := `select amount from account where uuid = $1`
+// 	var cash int
+// 	row := s.pool.QueryRow(ctx, query, uuid)
+// 	err := row.Scan(&cash)
+// 	if err != nil {
+// 		slog.Error("Error Fetching Book Details: %w", slog.String("err", err.Error()))
+// 		return 0, err
+// 	}
 
-	cash += amount
+// 	return cash, nil
+// }
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback(ctx)
-		} else {
-			tx.Commit(ctx)
-		}
-	}()
+// func (s *Instance) DepositPay(ctx context.Context, uuid string, amount int) error {
+// 	cash, err := s.GetAmount(ctx, uuid)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	args := pgx.NamedArgs{
-		"cash": cash,
-		"uuid": uuid,
-	}
+// 	cash += amount
 
-	_, err = tx.Exec(ctx, "UPDATE account SET amount = @cash where uuid = @uuid", args)
-	if err != nil {
-		slog.Error("UPDATE fall: %w", slog.String("err", err.Error()))
-		return err
-	}
+// 	tx, err := s.pool.Begin(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer func() {
+// 		if err != nil {
+// 			tx.Rollback(ctx)
+// 		} else {
+// 			tx.Commit(ctx)
+// 		}
+// 	}()
 
-	slog.Info("user depositPay", slog.String("user", uuid))
-	return nil
-}
+// 	args := pgx.NamedArgs{
+// 		"cash": cash,
+// 		"uuid": uuid,
+// 	}
 
-func (s *Instance) WithdrawPay(ctx context.Context, uuid string, amount int) error {
+// 	_, err = tx.Exec(ctx, "UPDATE account SET amount = @cash where uuid = @uuid", args)
+// 	if err != nil {
+// 		slog.Error("UPDATE fall: %w", slog.String("err", err.Error()))
+// 		return err
+// 	}
 
-	cash, err := s.GetAmount(ctx, uuid)
-	if err != nil {
-		return err
-	}
+// 	slog.Info("user depositPay", slog.String("user", uuid))
+// 	return nil
+// }
 
-	if amount > cash {
-		return errors.New("there are insufficient funds in your account")
-	}
+// func (s *Instance) WithdrawPay(ctx context.Context, uuid string, amount int) error {
 
-	cash -= amount
+// 	cash, err := s.GetAmount(ctx, uuid)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback(ctx)
-		} else {
-			tx.Commit(ctx)
-		}
-	}()
+// 	if amount > cash {
+// 		return errors.New("there are insufficient funds in your account")
+// 	}
 
-	args := pgx.NamedArgs{
-		"cash": cash,
-		"uuid": uuid,
-	}
+// 	cash -= amount
 
-	_, err = tx.Exec(ctx, "UPDATE account SET amount = @cash where uuid = @uuid", args)
-	if err != nil {
-		slog.Error("UPDATE fall: %w", slog.String("err", err.Error()))
-		return err
-	}
+// 	tx, err := s.pool.Begin(ctx)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer func() {
+// 		if err != nil {
+// 			tx.Rollback(ctx)
+// 		} else {
+// 			tx.Commit(ctx)
+// 		}
+// 	}()
 
-	slog.Info("user withdrawPay", slog.String("user", uuid))
-	return nil
-}
+// 	args := pgx.NamedArgs{
+// 		"cash": cash,
+// 		"uuid": uuid,
+// 	}
 
-func (ex *Exchange) Exchanges(ctx context.Context) (map[string]float64, error) {
-	slog.Info("metod Exchanges")
-	rate := map[string]float64{}
-	return rate, nil
-}
+// 	_, err = tx.Exec(ctx, "UPDATE account SET amount = @cash where uuid = @uuid", args)
+// 	if err != nil {
+// 		slog.Error("UPDATE fall: %w", slog.String("err", err.Error()))
+// 		return err
+// 	}
 
-func (ex *Exchange) Exchange(
-	ctx context.Context, from_currency string, to_currency string,
-) (int, error) {
-	slog.Info("metod Exchange")
-	return 11, fmt.Errorf("empty")
-}
+// 	slog.Info("user withdrawPay", slog.String("user", uuid))
+// 	return nil
+// }

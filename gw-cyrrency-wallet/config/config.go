@@ -11,7 +11,20 @@ import (
 type Config struct {
 	Env        string `yaml:"env" env:"ENV" env-default:"local"`
 	HTTPServer `yaml:"http_server"`
+	GRPCServer `yaml:"grpc_server"`
 	Storage    `yaml:"storage"`
+}
+
+type HTTPServer struct {
+	Address     string        `yaml:"address" env-default:"localhost"`
+	Port        string        `yaml:"port" env-default:":8080"`
+	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
+	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+}
+
+type GRPCServer struct {
+	Address string `yaml:"address" env-default:"localhost"`
+	Port    int    `yaml:"port" env-default:":4000"`
 }
 
 type Storage struct {
@@ -20,13 +33,6 @@ type Storage struct {
 	Role     string `yaml:"user" env-default:"postgres"`
 	Pass     string `yaml:"pass" env-default:""`
 	Database string `yaml:"database" env-default:"postgres"`
-}
-
-type HTTPServer struct {
-	Address     string        `yaml:"address" env-default:"localhost:8080"`
-	Port        string        `yaml:"port" env-default:":4000"`
-	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }
 
 var cfg Config

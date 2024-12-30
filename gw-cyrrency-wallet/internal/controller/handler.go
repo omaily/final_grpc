@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
-	"google.golang.org/grpc"
 
 	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
@@ -105,14 +103,7 @@ func rates(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
 
 func exchange(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		conn, err := grpc.Dial("server:8081", grpc.WithInsecure())
-		if err != nil {
-			log.Fatalf("Не могу подключиться: %v", err)
-		}
-		defer conn.Close()
-		client := pb.NewExchangeServiceClient(conn)
-
-		r, err := client.GetExchangeRate(context.Background(), &pb.CurrencyRequest{
+		r, err := (*clientGrpc.Client).GetExchangeRate(context.Background(), &pb.CurrencyRequest{
 			FromCurrency: "usd",
 			ToCurrency:   "rub",
 		})
