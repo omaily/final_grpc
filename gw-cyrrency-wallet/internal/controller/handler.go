@@ -11,46 +11,79 @@ import (
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/model"
 	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
 
+func parseAutorizate(c *gin.Context) *model.Account {
+	logger := slog.With(
+		slog.String("HandlerFunc", "parseAutorizate"),
+	)
+
+	var json midleware.Login
+	if err := c.ShouldBindJSON(&json); err != nil {
+		logger.Error("faled to decode json")
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return nil
+	}
+
+	if json.Username == "" || json.Password == "" {
+		logger.Error("empty required fields are missing")
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "empty required fields are missing"})
+		return nil
+	}
+	acc := model.Account(json)
+	return &acc
+}
+
 func register(st *storage.Instance) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var json midleware.Login
-		if err := c.ShouldBindJSON(&json); err != nil {
-			slog.Info("faled to decode json")
+		logger := slog.With(
+			slog.String("HandlerFunc", "register"),
+		)
+
+		user := parseAutorizate(c)
+		if user == nil {
+			logger.Error("invalid request parameters")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters"})
+			return
+		}
+
+		uuid, err := st.CreateAccount(c.Request.Context(), user)
+		if err != nil {
+			logger.Error("create account", slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		if json.Username == "" || json.Password == "" || json.Email == "" {
-			slog.Info("Empty required fields are missing")
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "empty required fields are missing"})
-			return
-		}
-
-		st.User.CreateAccount(json.Username, json.Password)
-		c.JSON(http.StatusOK, gin.H{"status": "you are logged in"})
+		logger.Info(fmt.Sprintf("create account %x", *uuid))
+		c.JSON(http.StatusOK, gin.H{"status": "User registered successfully"})
 	}
 }
 
 func login(st *storage.Instance) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var json midleware.Login
-		if err := c.ShouldBindJSON(&json); err != nil {
-			slog.Info("faled to decode json")
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		logger := slog.With(
+			slog.String("HandlerFunc", "login"),
+		)
+
+		user := parseAutorizate(c)
+		if user == nil {
+			logger.Error("invalid request parameters")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters"})
 			return
 		}
 
-		if json.Username == "" || json.Password == "" {
-			slog.Info("Empty required fields are missing")
-			c.JSON(http.StatusUnauthorized, gin.H{"status": "empty required fields are missing"})
-			return
-		}
-
-		if isExists := st.FindAccount(json.Username, json.Password); !isExists {
+		passwordCript, err := st.FindAccount(c.Request.Context(), user)
+		if err != nil {
+			logger.Error("err", slog.String("error", err.Error()))
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "Invalid username or password"})
+			return
+		}
+
+		if !user.CheckPassword(passwordCript) {
+			logger.Error("wrong password")
+			c.JSON(http.StatusOK, gin.H{"error": "passwords do not match"})
 			return
 		}
 

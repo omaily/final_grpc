@@ -11,20 +11,20 @@ import (
 type Config struct {
 	Env        string `yaml:"env" env:"ENV" env-default:"local"`
 	HTTPServer `yaml:"http_server"`
-	GrpcServer `yaml:"server_grpc"`
+	GRPCServer `yaml:"grpc_server"`
 	Storage    `yaml:"storage"`
 }
 
 type HTTPServer struct {
-	Address     string        `yaml:"address" env-default:"localhost:8080"`
-	Port        string        `yaml:"port" env-default:":4000"`
+	Address     string        `yaml:"address" env-default:"localhost"`
+	Port        string        `yaml:"port" env-default:":8080"`
 	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }
 
-type GrpcServer struct {
-	Address string `yaml:"address" env-default:"localhost:8080"`
-	Port    string `yaml:"port" env-default:":4000"`
+type GRPCServer struct {
+	Address string `yaml:"address" env-default:"localhost"`
+	Port    int    `yaml:"port" env-default:":4000"`
 }
 
 type Storage struct {

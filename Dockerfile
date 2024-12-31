@@ -2,8 +2,10 @@ FROM golang:latest as wallet
 RUN apt-get update && apt-get install -y curl 
 WORKDIR /app
 
-COPY ./gw-cyrrency-wallet ./
 # COPY ./pkg/proto/exchange ./pkg/proto
+COPY ./gw-cyrrency-wallet ./
+COPY file.env ./
+
 
 RUN go mod download
 RUN sh -s -- -b $(go env GOPATH)/bin

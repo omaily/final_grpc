@@ -8,12 +8,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/model"
 )
 
 type Instance struct {
 	conf *config.Storage
 	pool *pgxpool.Pool
-	User *Account
+	User *model.Account
 }
 
 var pgOnce sync.Once

@@ -27,7 +27,7 @@ func (db *Instance) ExchangeRate(
 	slog.Info("storage no cursor, method single select")
 
 	var fromRate, toRate float64
-	query := `select note, rate from cyrrency where note = $1`
+	query := `select note, rate FROM cyrrency where note = $1`
 
 	err := db.pool.QueryRow(ctx, query, from_currency).Scan(&fromRate)
 	if err != nil {
