@@ -32,59 +32,55 @@ func newToken(userId string, typeToken *ModifierToken) (*Claims, string, error) 
 	return claims, tokenString, nil
 }
 
-func GeneratePairToken(userId string) (*http.Cookie, string, error) {
+func GeneratePairToken(userId string) (*http.Cookie, *http.Cookie, error) {
 	accessClaims, accessToken, err := newToken(userId, AccessToken)
 	if err != nil {
-		slog.Error("error maintain token", slog.String("err", err.Error()))
-		return nil, "", err
+		slog.Error("error maintain access_token", slog.String("err", err.Error()))
+		return nil, nil, err
 	}
 
 	refreshClaims, refreshToken, err := newToken(userId, RefreshToken)
 	if err != nil {
-		slog.Error("error maintain token", slog.String("err", err.Error()))
-		return nil, "", err
+		slog.Error("error maintain refresh_token", slog.String("err", err.Error()))
+		return nil, nil, err
 	}
 
 	// "bcrypt: password length exceeds 72 bytes"
 	// refreshTokenCript, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcrypt.DefaultCost)
 
 	theRedis[userId] = PairToken{
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		AccessToken:  accessClaims.UUID,
 	}
 
 	return &http.Cookie{
-		Name:    RefreshToken.Name,
-		Path:    "/",
-		Value:   refreshToken,
-		Expires: refreshClaims.ExpiresAt.Time,
-	}, accessToken, err
+			Name:    AccessToken.Name,
+			Path:    "/",
+			Value:   accessToken,
+			Expires: accessClaims.ExpiresAt.Time,
+		}, &http.Cookie{
+			Name:    RefreshToken.Name,
+			Path:    "/",
+			Value:   refreshToken,
+			Expires: refreshClaims.ExpiresAt.Time,
+		}, err
 }
 
-func ValidateToken(tokenArrived string) error {
-	logger := slog.With(
-		slog.String("konponent", "jwt.ValidateToken"),
-	)
-
+func ValidateToken(tokenArrived string) (string, error) {
 	claims, err := parseToken(tokenArrived)
 	if err != nil {
-		err := fmt.Errorf("parseToken: %w", err)
-		logger.Error(err.Error())
-		return err
+		return "", fmt.Errorf("parseToken: %w", err)
 	}
 
 	pair := theRedis[claims.GUID]
-	if pair.AccessToken != claims.UUID {
-		err := errors.New("token not found")
-		logger.Error(err.Error())
-		return err
+	if pair.AccessToken != tokenArrived && pair.RefreshToken != tokenArrived {
+		return "", fmt.Errorf("reddis: token not found")
 	}
 
-	return nil
+	return claims.GUID, nil
 }
 
-func MaintainToken(refreshtoken string, accesstoken string) (string, error) {
-
+func MaintainToken(refreshtoken string, accesstoken string) (*http.Cookie, error) {
 	logger := slog.With(
 		slog.String("konponent", "jwt.MaintainToken"),
 	)
@@ -92,7 +88,7 @@ func MaintainToken(refreshtoken string, accesstoken string) (string, error) {
 	refreshclaims, err := parseToken(refreshtoken)
 	if err != nil {
 		logger.Error(err.Error())
-		return "", err
+		return nil, err
 	}
 
 	accessclaims, err := parseToken(accesstoken)
@@ -101,7 +97,7 @@ func MaintainToken(refreshtoken string, accesstoken string) (string, error) {
 		logger.Error(err.Error())
 	case err != nil:
 		logger.Error(err.Error())
-		return "", err
+		return nil, err
 	}
 
 	fmt.Println(time.Until(accessclaims.ExpiresAt.Time))
@@ -111,35 +107,37 @@ func MaintainToken(refreshtoken string, accesstoken string) (string, error) {
 	if almostExpired > 5*time.Minute {
 		err := errors.New("too little time has passed since the token was created")
 		logger.Error(err.Error(), slog.String("token hasn't expired", almostExpired.String()))
-		return "", err
+		return nil, err
 	}
 
 	var userID string
 	if refreshclaims.GUID != accessclaims.GUID {
 		err := errors.New("tokens are not linked")
 		logger.Error(err.Error())
-		return "", err
+		return nil, err
 	} else {
 		userID = refreshclaims.GUID
 	}
 
 	pair := theRedis[userID]
 
-	if pair.RefreshToken != refreshtoken || pair.AccessToken != accessclaims.UUID {
-		err := errors.New("token not found")
-		logger.Error(err.Error())
-		return "", err
+	if pair.RefreshToken != refreshtoken || pair.AccessToken != accesstoken {
+		return nil, errors.New("token not found")
 	}
 
 	newclaims, newtoken, err := newToken(userID, AccessToken)
 	if err != nil {
-		slog.Error("error maintain token", slog.String("err", err.Error()))
-		return "", err
+		return nil, fmt.Errorf("maintain token: %w", err)
 	}
-	pair.AccessToken = newclaims.UUID
+	pair.AccessToken = newtoken
 	theRedis[userID] = pair
 
-	return newtoken, err
+	return &http.Cookie{
+		Name:    AccessToken.Name,
+		Path:    "/",
+		Value:   newtoken,
+		Expires: newclaims.ExpiresAt.Time,
+	}, err
 }
 
 func parseToken(tokenArrived string) (*Claims, error) {

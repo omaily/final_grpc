@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/auth"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
@@ -15,7 +16,7 @@ import (
 	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
 
-func parseAutorizate(c *gin.Context) *model.Account {
+func parsAuthenticat(c *gin.Context) *model.Account {
 	logger := slog.With(
 		slog.String("HandlerFunc", "parseAutorizate"),
 	)
@@ -42,7 +43,7 @@ func register(st *storage.Instance) gin.HandlerFunc {
 			slog.String("HandlerFunc", "register"),
 		)
 
-		user := parseAutorizate(c)
+		user := parsAuthenticat(c)
 		if user == nil {
 			logger.Error("invalid request parameters")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters"})
@@ -56,7 +57,7 @@ func register(st *storage.Instance) gin.HandlerFunc {
 			return
 		}
 
-		logger.Info(fmt.Sprintf("create account %x", *uuid))
+		logger.Info(fmt.Sprintf("create account %x", uuid))
 		c.JSON(http.StatusOK, gin.H{"status": "User registered successfully"})
 	}
 }
@@ -67,14 +68,14 @@ func login(st *storage.Instance) gin.HandlerFunc {
 			slog.String("HandlerFunc", "login"),
 		)
 
-		user := parseAutorizate(c)
+		user := parsAuthenticat(c)
 		if user == nil {
 			logger.Error("invalid request parameters")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters"})
 			return
 		}
 
-		passwordCript, err := st.FindAccount(c.Request.Context(), user)
+		userId, passwordCript, err := st.FindAccount(c.Request.Context(), user)
 		if err != nil {
 			logger.Error("err", slog.String("error", err.Error()))
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "Invalid username or password"})
@@ -83,31 +84,60 @@ func login(st *storage.Instance) gin.HandlerFunc {
 
 		if !user.CheckPassword(passwordCript) {
 			logger.Error("wrong password")
-			c.JSON(http.StatusOK, gin.H{"error": "passwords do not match"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "passwords do not match"})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"token": "JWT_TOKEN"})
+		fmt.Printf("%x\n", userId)
+		accessToken, refreshToken, err := auth.GeneratePairToken(fmt.Sprintf("%x", userId))
+		if err != nil {
+			logger.Error("error creating token", slog.String("err", err.Error()))
+			c.JSON(http.StatusUnauthorized, gin.H{"err": err})
+			return
+		}
+
+		http.SetCookie(c.Writer, accessToken)
+		http.SetCookie(c.Writer, refreshToken)
+		c.JSON(http.StatusOK, gin.H{"token": midleware.Bearer(accessToken.Value)})
 	}
 }
 
-func balance(c *gin.Context) {
-	status := true
+func balance(st *storage.Instance, userId *string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		balance, err := st.CheckBalance(c.Request.Context(), *userId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-	if status {
-		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST BALANCE"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "error"})
+		c.JSON(http.StatusOK, gin.H{"message": balance})
 	}
 }
 
-func deposit(c *gin.Context) {
-	status := true
+func deposit(st *storage.Instance, userId *string) gin.HandlerFunc {
+	return func(c *gin.Context) {
 
-	if status {
-		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST DEPOSiT"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "error"})
+		var json midleware.Deposit
+		if err := c.ShouldBindJSON(&json); err != nil {
+			slog.Error(err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount or currency"})
+			return
+		}
+
+		deposit := model.Deposit(json)
+		if err := deposit.Validate(); err != nil {
+			slog.Error(err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		balance, err := st.PutMoney(c.Request.Context(), *userId, deposit)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "account topped up successfully", "new_balance": balance})
 	}
 }
 
@@ -125,7 +155,7 @@ func rates(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		r, err := (*clientGrpc.Client).GetExchangeRates(context.Background(), &pb.Empty{})
 		if err != nil {
-			slog.Error("Не удалось создать: отправить Rates: ", slog.String("error", err.Error()))
+			slog.Error("не удалось создать: отправить Rates: ", slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"message": err})
 			return
 		}

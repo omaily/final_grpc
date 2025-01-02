@@ -9,7 +9,7 @@ import (
 )
 
 type PairToken struct {
-	AccessToken  uuid.UUID
+	AccessToken  string
 	RefreshToken string
 }
 

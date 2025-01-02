@@ -8,9 +8,9 @@ CREATE TABLE account (
 );
 CREATE UNIQUE INDEX idx_account_uuid ON account(uuid);
 INSERT INTO account (uuid, name, pass, email) 
-    VALUES ('00000000-0000-0000-0000-000000000001', 'Алеша', '1703', 'alesha@mail.ru');
+    VALUES ('00000000-0000-0000-0000-000000000001', 'Алеша', '$2a$10$LnNCNcub3VKVVGE.t4fBS.bL00/SydpIUeE1P2nKKEvrckhn8iNBq', 'alesha@mail.ru'); --pass = 1703
 INSERT INTO account (uuid, name, pass, email) 
-    VALUES ('00000000-0000-0000-0000-000000000002', 'Степаша', '3223', 'killer@mail.ru');
+    VALUES ('00000000-0000-0000-0000-000000000002', 'Степаша', '$2a$10$zkihuN/2CXUlH5CJMBFY4ujzi8zZTnAUQZxPetOtDtLyo4prwoWTy', 'killer@mail.ru'); --pass = 3223
 
 CREATE TYPE cyrrency_code AS ENUM ('RUB', 'USD', 'EUR');
 
@@ -21,8 +21,10 @@ CREATE TABLE wallet (
     count DOUBLE PRECISION,
     FOREIGN KEY (user_id) REFERENCES account(uuid) ON DELETE NO ACTION
 );
+
 ALTER TABLE wallet ADD CONSTRAINT uniq_wallet_user_cur UNIQUE (user_id, currency);
 CREATE UNIQUE INDEX idx_wallet_id ON wallet(id);
+
 INSERT INTO wallet (user_id, currency, count) 
     VALUES ('00000000-0000-0000-0000-000000000001', 'EUR', 0);
 INSERT INTO wallet (user_id, currency, count) 

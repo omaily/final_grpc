@@ -5,3 +5,8 @@ type Login struct {
 	Password string `json:"password"`
 	Email    string `json:"email,omitempty"`
 }
+
+type Deposit struct {
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
+}
