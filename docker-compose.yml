@@ -14,28 +14,28 @@ services:
     networks:
       local-network: 
         ipv4_address: 172.16.0.10
-    links: #связывает контейнер app контейнером db
+    links: # сокращенные именя для подключения
       - server
       - db
-    depends_on: #ожидаем запуска образа базы
+      - redis
+    depends_on: #ожидаем запуска остальных сервисов
       - server
       - db
+      - redis
   server:
     container_name: autstore
     image: autstore
     build: 
-      context: . #путь до докерфайла
-      dockerfile: Dockerfile #Сам файл
-      target: autstore #этап FROM в Dockerfile 
+      context: . 
+      dockerfile: Dockerfile 
+      target: autstore 
     restart: always
-    # ports:
-      # - 8081:8081
     networks:
       local-network: 
         ipv4_address: 172.16.0.11
-    links: #связывает контейнер app контейнером db
+    links:
       - db
-    depends_on: #ожидаем запуска образа базы
+    depends_on:
       - db
   db:
     container_name: autstore-db
@@ -53,9 +53,24 @@ services:
     networks:
       local-network: 
         ipv4_address: 172.16.0.12
+  redis:
+    container_name: redis-server
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_REPLICATION_MODE: master
+    networks:
+      local-network: 
+        ipv4_address: 172.16.0.13
+    # volumes: 
+    #   - redis_cache:/data
+  
 
 volumes:
   postgres_data:
+  # redis_cache:
 
 networks:
   local-network:

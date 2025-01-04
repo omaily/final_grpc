@@ -38,7 +38,6 @@ func (c *Instance) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Instance) Stop(_ context.Context) error {
+func (c *Instance) Stop() {
 	c.pool.Close()
-	return nil
 }

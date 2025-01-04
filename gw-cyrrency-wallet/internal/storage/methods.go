@@ -95,7 +95,6 @@ func (st *Instance) CheckBalance(ctx context.Context, strUUID string) (map[strin
 		return nil
 	})
 
-	fmt.Println("storage", balance)
 	return balance, nil
 }
 
@@ -103,7 +102,7 @@ func (st *Instance) PutMoney(ctx context.Context, strUUID string, deposit model.
 	uuid := moveStringToUUID(strUUID)
 	query := `INSERT INTO wallet (user_id, currency, count)
 VALUES (@user_id, @currency, @count)
-ON CONFLICT (user_id, currency)
+ON CONFLICT ON CONSTRAINT uniq_wallet_user_cur
 DO UPDATE SET count = wallet.count + @count;`
 	args := pgx.NamedArgs{
 		"user_id":  uuid,
@@ -114,6 +113,23 @@ DO UPDATE SET count = wallet.count + @count;`
 	_, err := st.pool.Exec(ctx, query, args)
 	if err != nil {
 		return nil, fmt.Errorf("unable to insert row: %w", err)
+	}
+
+	return st.CheckBalance(ctx, strUUID)
+}
+
+func (st *Instance) GetMoney(ctx context.Context, strUUID string, deposit model.Deposit) (map[string]float64, error) {
+	uuid := moveStringToUUID(strUUID)
+	query := `UPDATE wallet SET count = wallet.count - @count WHERE user_id = @user_id and currency = @currency`
+	args := pgx.NamedArgs{
+		"user_id":  uuid,
+		"currency": deposit.Currency,
+		"count":    deposit.Amount,
+	}
+
+	_, err := st.pool.Exec(ctx, query, args)
+	if err != nil {
+		return nil, fmt.Errorf("db %w", err)
 	}
 
 	return st.CheckBalance(ctx, strUUID)

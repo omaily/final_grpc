@@ -8,13 +8,35 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/auth"
-	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
+
+	connectGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
+	connectRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/model"
 	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
+
+func test(red connectRedis.RedisClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sender := "{" + c.Request.Host + ", Agent:" + c.Request.UserAgent() + "}"
+
+		err := red.Set(context.Background(), "greeting", sender, 0)
+		if err != nil {
+			fmt.Println("Failed to set key:", err)
+			return
+		}
+
+		val, err := red.Get(context.Background(), "greeting")
+		if err != nil {
+			fmt.Println("Failed to get key:", err)
+			return
+		}
+
+		fmt.Println("Value for key 'greeting':", val)
+	}
+}
 
 func parsAuthenticat(c *gin.Context) *model.Account {
 	logger := slog.With(
@@ -141,17 +163,33 @@ func deposit(st *storage.Instance, userId *string) gin.HandlerFunc {
 	}
 }
 
-func withdraw(c *gin.Context) {
-	status := true
+func withdraw(st *storage.Instance, userId *string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var json midleware.Deposit
+		if err := c.ShouldBindJSON(&json); err != nil {
+			slog.Error(err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount or currency"})
+			return
+		}
 
-	if status {
-		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST WITHDRAW"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "error"})
+		deposit := model.Deposit(json)
+		if err := deposit.Validate(); err != nil {
+			slog.Error(err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		balance, err := st.GetMoney(c.Request.Context(), *userId, deposit)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Insufficient funds or invalid amount", "new_balance": balance})
 	}
 }
 
-func rates(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
+func rates(clientGrpc *connectGrpc.GrpcClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		r, err := (*clientGrpc.Client).GetExchangeRates(context.Background(), &pb.Empty{})
 		if err != nil {
@@ -164,7 +202,7 @@ func rates(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
 	}
 }
 
-func exchange(clientGrpc *connector.GrpcClient) gin.HandlerFunc {
+func exchange(clientGrpc *connectGrpc.GrpcClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		r, err := (*clientGrpc.Client).GetExchangeRate(context.Background(), &pb.CurrencyRequest{
 			FromCurrency: "usd",

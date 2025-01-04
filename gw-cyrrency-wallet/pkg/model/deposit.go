@@ -16,7 +16,7 @@ var (
 )
 
 func (d Deposit) Validate() error {
-	if !enumCurrency[d.Currency] {
+	if !enumCurrency[d.Currency] || d.Amount <= 0 {
 		return fmt.Errorf("invalid amount or currency")
 	}
 	return nil

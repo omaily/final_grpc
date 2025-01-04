@@ -11,16 +11,26 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
-	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/connector"
+	clientgrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
+	clientredis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/controller"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 type App struct {
-	conf       *config.Config
-	serverHttp *controller.Http
-	clientGrpc *connector.GrpcClient
-	storage    *storage.Instance
+	conf   *config.Config
+	server *controller.Http
+	cmps   []remoteServers
+}
+
+type remoteServers struct {
+	Name    string
+	Service ClientApplications
+}
+
+type ClientApplications interface {
+	Start(ctx context.Context) error
+	Stop()
 }
 
 func New(ctx context.Context, conf *config.Config) (*App, error) {
@@ -48,12 +58,12 @@ func (a *App) Run() error {
 	defer cancel()
 
 	if err := a.start(ctx); err != nil {
-		slog.Error("could not initialize server: %s", slog.String("error", err.Error()))
+		return err
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	chShutdown := make(chan os.Signal, 1)
+	signal.Notify(chShutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	<-chShutdown
 
 	slog.Info("stopping server due to syscall or collapse")
 	ctx, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
@@ -63,32 +73,41 @@ func (a *App) Run() error {
 }
 
 func (a *App) start(ctx context.Context) error {
-
-	//start db
 	storage := storage.New(a.conf.Storage)
-	if err := storage.Start(ctx); err != nil {
-		return fmt.Errorf("could not initialize storage: %s", err)
-	}
-	a.storage = storage
+	clientGrpc := clientgrpc.New(a.conf.GRPCServer)
+	clientRedis := clientredis.New("redi")
 
-	//connect grpc service
-	clientGrpc := connector.New(a.conf.GRPCServer)
-	a.clientGrpc = clientGrpc
+	a.cmps = []remoteServers{
+		{"db-postgre", storage},
+		{"GRPC server", clientGrpc},
+		{"Redis server", clientGrpc},
+	}
+
+	for _, cmp := range a.cmps {
+		if err := cmp.Service.Start(ctx); err != nil {
+			return fmt.Errorf("error connecting to %s: %w", cmp.Name, err)
+		}
+		slog.Info(fmt.Sprintf("%v started", cmp.Name))
+	}
 
 	//start http service
-	server := controller.New(a.conf.HTTPServer, storage, clientGrpc)
+	server := controller.New(a.conf.HTTPServer, storage, clientGrpc, clientRedis)
 	if err := server.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize controller: %s", err)
 	}
-	a.serverHttp = server
+	a.server = server
 
 	return nil
 }
 
-func (a *App) stop(_ context.Context) error {
-	slog.Info("process shutting down service...")
-	a.serverHttp.Stop()
-	a.clientGrpc.Stop()
+func (a *App) stop(ctx context.Context) error {
+	slog.Info("process shutting down server... ")
+	a.server.Stop(ctx)
+
+	for _, client := range a.cmps {
+		slog.Info("process shutting down " + client.Name + "...")
+		client.Service.Stop()
+	}
 
 	return nil
 }

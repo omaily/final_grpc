@@ -4,7 +4,7 @@ WORKDIR /app
 
 # COPY ./pkg/proto/exchange ./pkg/proto
 COPY ./gw-cyrrency-wallet ./
-COPY file.env ./
+COPY wallet.env ./
 
 
 RUN go mod download

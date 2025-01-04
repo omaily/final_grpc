@@ -1,8 +1,8 @@
-package connector
+package grpc
 
 import (
+	"context"
 	"fmt"
-	"log/slog"
 
 	"google.golang.org/grpc"
 
@@ -12,26 +12,28 @@ import (
 
 type GrpcClient struct {
 	conf   config.GRPCServer
-	Conn   *grpc.ClientConn
+	conn   *grpc.ClientConn
 	Client *pb.ExchangeServiceClient
 }
 
 func New(conf config.GRPCServer) *GrpcClient {
-	address := fmt.Sprintf("%s:%d", conf.Address, conf.Port)
+	return &GrpcClient{conf: conf}
+}
+
+func (c *GrpcClient) Start(_ context.Context) error {
+	address := fmt.Sprintf("%s:%d", c.conf.Address, c.conf.Port)
 	listen, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
-		slog.Error("Не могу подключиться: %v", slog.String("error", err.Error()))
+		return err
 	}
+	c.conn = listen
 
 	client := pb.NewExchangeServiceClient(listen)
-	return &GrpcClient{
-		conf:   conf,
-		Conn:   listen,
-		Client: &client,
-	}
+	c.Client = &client
+
+	return nil
 }
 
 func (c *GrpcClient) Stop() {
-	c.Conn.Close()
-	slog.Info("...down grpc connector")
+	c.conn.Close()
 }

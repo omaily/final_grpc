@@ -18,12 +18,13 @@ CREATE TABLE wallet (
     id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id TEXT NOT NULL, 
     currency cyrrency_code NOT NULL, 
-    count DOUBLE PRECISION,
+    count DOUBLE PRECISION NOT NULL,
     FOREIGN KEY (user_id) REFERENCES account(uuid) ON DELETE NO ACTION
 );
 
+CREATE UNIQUE INDEX idx_wallet_cols ON wallet (user_id, currency);
 ALTER TABLE wallet ADD CONSTRAINT uniq_wallet_user_cur UNIQUE (user_id, currency);
-CREATE UNIQUE INDEX idx_wallet_id ON wallet(id);
+ALTER TABLE wallet ADD CONSTRAINT wallet_nonnegative CHECK (count >= 0);
 
 INSERT INTO wallet (user_id, currency, count) 
     VALUES ('00000000-0000-0000-0000-000000000001', 'EUR', 0);

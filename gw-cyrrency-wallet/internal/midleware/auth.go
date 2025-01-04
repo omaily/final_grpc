@@ -19,14 +19,14 @@ func AuthCookie(userId *string) gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "request does not contain cookie"})
 				return
 			}
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "request does not contain an access token"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Cookie access_token is missing"})
 			return
 		}
 
 		*userId, err = auth.ValidateToken(accessToken.Value)
 		if err != nil {
 			slog.Error(err.Error())
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "access_token not valid"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid access_token format"})
 			return
 		}
 	}
@@ -36,15 +36,15 @@ func AuthHeader(userId *string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header is missing"})
-			c.AbortWithStatus(http.StatusUnauthorized)
+			slog.Error("authorization header is missing")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authorization header is missing"})
 			return
 		}
 
 		authToken := strings.Split(authHeader, " ")
 		if len(authToken) != 2 || authToken[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
-			c.AbortWithStatus(http.StatusUnauthorized)
+			slog.Error("invalid token format")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
 			return
 		}
 
@@ -52,7 +52,7 @@ func AuthHeader(userId *string) gin.HandlerFunc {
 		*userId, err = auth.ValidateToken(authToken[1])
 		if err != nil {
 			slog.Error(err.Error())
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "access_token not valid"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "access_token not valid"})
 			return
 		}
 	}

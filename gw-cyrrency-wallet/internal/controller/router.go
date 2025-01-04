@@ -10,6 +10,8 @@ import (
 func (s *Http) router() http.Handler {
 	router := gin.Default()
 
+	router.GET("/test", test(s.clientRedis))
+
 	s.public(router) //Публичные маршруты
 	s.secure(router)
 
@@ -28,7 +30,7 @@ func (s *Http) secure(router *gin.Engine) {
 	{
 		gr.GET("/balance", balance(s.storage, &userId))
 		gr.POST("/wallet/deposit", deposit(s.storage, &userId))
-		gr.POST("/wallet/withdraw", withdraw)
+		gr.POST("/wallet/withdraw", withdraw(s.storage, &userId))
 
 		gr.GET("/exchange/rates", rates(s.clientGrpc))
 		gr.POST("/exchange", exchange(s.clientGrpc))
