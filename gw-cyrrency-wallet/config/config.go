@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Env        string `yaml:"env" env:"ENV" env-default:"local"`
-	HTTPServer `yaml:"http_server"`
-	GRPCServer `yaml:"grpc_server"`
-	Storage    `yaml:"storage"`
+	Env         string `yaml:"env" env:"ENV" env-default:"local"`
+	HTTPServer  `yaml:"http_server"`
+	Storage     `yaml:"storage"`
+	GRPCServer  `yaml:"grpc_remote_server"`
+	RedisServer `yaml:"redis_remote_server"`
 }
 
 type HTTPServer struct {
@@ -25,6 +26,11 @@ type HTTPServer struct {
 type GRPCServer struct {
 	Address string `yaml:"address" env-default:"localhost"`
 	Port    int    `yaml:"port" env-default:":4000"`
+}
+
+type RedisServer struct {
+	Address string `yaml:"address" env-default:"localhost"`
+	Port    int    `yaml:"port" env-default:":6379"`
 }
 
 type Storage struct {

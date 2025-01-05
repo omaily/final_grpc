@@ -98,7 +98,7 @@ func (st *Instance) CheckBalance(ctx context.Context, strUUID string) (map[strin
 	return balance, nil
 }
 
-func (st *Instance) PutMoney(ctx context.Context, strUUID string, deposit model.Deposit) (map[string]float64, error) {
+func (st *Instance) PutMoney(ctx context.Context, strUUID string, deposit model.Transfer) (map[string]float64, error) {
 	uuid := moveStringToUUID(strUUID)
 	query := `INSERT INTO wallet (user_id, currency, count)
 VALUES (@user_id, @currency, @count)
@@ -118,7 +118,7 @@ DO UPDATE SET count = wallet.count + @count;`
 	return st.CheckBalance(ctx, strUUID)
 }
 
-func (st *Instance) GetMoney(ctx context.Context, strUUID string, deposit model.Deposit) (map[string]float64, error) {
+func (st *Instance) TakeMoney(ctx context.Context, strUUID string, deposit model.Transfer) (map[string]float64, error) {
 	uuid := moveStringToUUID(strUUID)
 	query := `UPDATE wallet SET count = wallet.count - @count WHERE user_id = @user_id and currency = @currency`
 	args := pgx.NamedArgs{

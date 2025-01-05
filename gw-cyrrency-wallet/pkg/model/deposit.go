@@ -2,7 +2,7 @@ package model
 
 import "fmt"
 
-type Deposit struct {
+type Transfer struct {
 	Currency string  `json:"currency"`
 	Amount   float64 `json:"amount"`
 }
@@ -15,7 +15,7 @@ var (
 	}
 )
 
-func (d Deposit) Validate() error {
+func (d Transfer) Validate() error {
 	if !enumCurrency[d.Currency] || d.Amount <= 0 {
 		return fmt.Errorf("invalid amount or currency")
 	}

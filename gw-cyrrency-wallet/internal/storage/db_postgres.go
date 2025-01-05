@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/storage"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/model"
 )
 
@@ -19,7 +20,7 @@ type Instance struct {
 
 var pgOnce sync.Once
 
-func New(conf config.Storage) *Instance {
+func New(conf config.Storage) storage.Repository {
 	return &Instance{
 		conf: &conf,
 	}

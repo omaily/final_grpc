@@ -1,4 +1,4 @@
-package controller
+package server
 
 import (
 	"context"
@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
-	connectorGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
-	connectorRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
-	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
+	connGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
+	connRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/storage"
 )
 
 type Http struct {
 	conf        *config.HTTPServer
 	conn        *http.Server
-	storage     *storage.Instance //убрать
-	clientGrpc  *connectorGrpc.GrpcClient
-	clientRedis connectorRedis.RedisClient
+	storage     storage.Repository
+	clientGrpc  connGrpc.Client
+	clientRedis connRedis.Client
 }
 
-func New(conf config.HTTPServer, storage *storage.Instance, grpc *connectorGrpc.GrpcClient, redis connectorRedis.RedisClient) *Http {
+func New(conf config.HTTPServer, storage storage.Repository, grpc connGrpc.Client, redis connRedis.Client) *Http {
 	return &Http{
 		conf:        &conf,
 		storage:     storage,

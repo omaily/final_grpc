@@ -7,10 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	connRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/auth"
 )
 
-func AuthCookie(userId *string) gin.HandlerFunc {
+func AuthCookie(userId *string, rd connRedis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accessToken, err := c.Request.Cookie("access_token")
 		if err != nil {
@@ -23,7 +24,7 @@ func AuthCookie(userId *string) gin.HandlerFunc {
 			return
 		}
 
-		*userId, err = auth.ValidateToken(accessToken.Value)
+		*userId, err = auth.ValidateToken(rd, accessToken.Value)
 		if err != nil {
 			slog.Error(err.Error())
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid access_token format"})
@@ -32,7 +33,7 @@ func AuthCookie(userId *string) gin.HandlerFunc {
 	}
 }
 
-func AuthHeader(userId *string) gin.HandlerFunc {
+func AuthHeader(userId *string, rd connRedis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -49,7 +50,7 @@ func AuthHeader(userId *string) gin.HandlerFunc {
 		}
 
 		var err error
-		*userId, err = auth.ValidateToken(authToken[1])
+		*userId, err = auth.ValidateToken(rd, authToken[1])
 		if err != nil {
 			slog.Error(err.Error())
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "access_token not valid"})

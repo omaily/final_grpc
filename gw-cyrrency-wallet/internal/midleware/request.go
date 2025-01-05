@@ -6,7 +6,13 @@ type Login struct {
 	Email    string `json:"email,omitempty"`
 }
 
-type Deposit struct {
+type Transfer struct {
 	Currency string  `json:"currency"`
 	Amount   float64 `json:"amount"`
+}
+
+type Exchange struct {
+	FromCurrency string  `json:"from_currency"`
+	ToCurrency   string  `json:"to_currency"`
+	Amount       float64 `json:"amount"`
 }

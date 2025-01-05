@@ -15,14 +15,14 @@ services:
       local-network: 
         ipv4_address: 172.16.0.10
     links: # сокращенные именя для подключения
-      - server
-      - db
+      - exchanger
       - redis
+      - db
     depends_on: #ожидаем запуска остальных сервисов
-      - server
-      - db
+      - exchanger
       - redis
-  server:
+      - db
+  exchanger:
     container_name: autstore
     image: autstore
     build: 

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -14,12 +15,11 @@ type Account struct {
 }
 
 func (a *Account) String() string {
-	out := "{\n"
-	out += fmt.Sprintf("\tusername: %v\n", a.Username)
-	out += fmt.Sprintf("\tpassword: %v\n", a.Password)
-	out += fmt.Sprintf("\temail: %v\n", a.Email)
-	out += "}"
-	return out
+	json, err := json.Marshal(a)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return string(json)
 }
 
 func (a *Account) SetPassword() ([]byte, error) {

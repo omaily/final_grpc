@@ -1,4 +1,4 @@
-package controller
+package server
 
 import (
 	"context"
@@ -7,36 +7,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	connGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
+	connRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/storage"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/auth"
-
-	connectGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
-	connectRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
-	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
-
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/model"
-	pb "github.com/omaily/final_grpc/gw-cyrrency-wallet/pkg/proto"
 )
-
-func test(red connectRedis.RedisClient) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sender := "{" + c.Request.Host + ", Agent:" + c.Request.UserAgent() + "}"
-
-		err := red.Set(context.Background(), "greeting", sender, 0)
-		if err != nil {
-			fmt.Println("Failed to set key:", err)
-			return
-		}
-
-		val, err := red.Get(context.Background(), "greeting")
-		if err != nil {
-			fmt.Println("Failed to get key:", err)
-			return
-		}
-
-		fmt.Println("Value for key 'greeting':", val)
-	}
-}
 
 func parsAuthenticat(c *gin.Context) *model.Account {
 	logger := slog.With(
@@ -59,7 +36,7 @@ func parsAuthenticat(c *gin.Context) *model.Account {
 	return &acc
 }
 
-func register(st *storage.Instance) gin.HandlerFunc {
+func register(st storage.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger := slog.With(
 			slog.String("HandlerFunc", "register"),
@@ -84,7 +61,7 @@ func register(st *storage.Instance) gin.HandlerFunc {
 	}
 }
 
-func login(st *storage.Instance) gin.HandlerFunc {
+func login(st storage.Repository, rd connRedis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger := slog.With(
 			slog.String("HandlerFunc", "login"),
@@ -110,8 +87,7 @@ func login(st *storage.Instance) gin.HandlerFunc {
 			return
 		}
 
-		fmt.Printf("%x\n", userId)
-		accessToken, refreshToken, err := auth.GeneratePairToken(fmt.Sprintf("%x", userId))
+		accessToken, refreshToken, err := auth.GeneratePairToken(rd, fmt.Sprintf("%x", userId))
 		if err != nil {
 			logger.Error("error creating token", slog.String("err", err.Error()))
 			c.JSON(http.StatusUnauthorized, gin.H{"err": err})
@@ -124,7 +100,7 @@ func login(st *storage.Instance) gin.HandlerFunc {
 	}
 }
 
-func balance(st *storage.Instance, userId *string) gin.HandlerFunc {
+func balance(st storage.Repository, userId *string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		balance, err := st.CheckBalance(c.Request.Context(), *userId)
 		if err != nil {
@@ -136,17 +112,17 @@ func balance(st *storage.Instance, userId *string) gin.HandlerFunc {
 	}
 }
 
-func deposit(st *storage.Instance, userId *string) gin.HandlerFunc {
+func deposit(st storage.Repository, userId *string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		var json midleware.Deposit
+		var json midleware.Transfer
 		if err := c.ShouldBindJSON(&json); err != nil {
 			slog.Error(err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount or currency"})
 			return
 		}
 
-		deposit := model.Deposit(json)
+		deposit := model.Transfer(json)
 		if err := deposit.Validate(); err != nil {
 			slog.Error(err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -163,23 +139,23 @@ func deposit(st *storage.Instance, userId *string) gin.HandlerFunc {
 	}
 }
 
-func withdraw(st *storage.Instance, userId *string) gin.HandlerFunc {
+func withdraw(st storage.Repository, userId *string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var json midleware.Deposit
+		var json midleware.Transfer
 		if err := c.ShouldBindJSON(&json); err != nil {
 			slog.Error(err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount or currency"})
 			return
 		}
 
-		deposit := model.Deposit(json)
-		if err := deposit.Validate(); err != nil {
+		withdraw := model.Transfer(json)
+		if err := withdraw.Validate(); err != nil {
 			slog.Error(err.Error())
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		balance, err := st.GetMoney(c.Request.Context(), *userId, deposit)
+		balance, err := st.TakeMoney(c.Request.Context(), *userId, withdraw)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
 			return
@@ -189,32 +165,32 @@ func withdraw(st *storage.Instance, userId *string) gin.HandlerFunc {
 	}
 }
 
-func rates(clientGrpc *connectGrpc.GrpcClient) gin.HandlerFunc {
+func rates(grpclient connGrpc.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		r, err := (*clientGrpc.Client).GetExchangeRates(context.Background(), &pb.Empty{})
+		rates, err := grpclient.ExchangeRates(context.Background())
 		if err != nil {
-			slog.Error("не удалось создать: отправить Rates: ", slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"message": err})
-			return
 		}
-		fmt.Println("return map:", r)
-		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST RATES"})
+
+		c.JSON(http.StatusOK, gin.H{"rates": rates})
 	}
 }
 
-func exchange(clientGrpc *connectGrpc.GrpcClient) gin.HandlerFunc {
+func exchange(grpclient connGrpc.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		r, err := (*clientGrpc.Client).GetExchangeRate(context.Background(), &pb.CurrencyRequest{
-			FromCurrency: "usd",
-			ToCurrency:   "rub",
-		})
-		if err != nil {
-			slog.Error("Не удалось создать: отправить Rate", slog.String("error", err.Error()))
-			c.JSON(http.StatusBadRequest, gin.H{"message": err})
+		var json midleware.Exchange
+		if err := c.ShouldBindJSON(&json); err != nil {
+			slog.Error(fmt.Sprintf("json fields are incorrect: %s", err.Error()))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "json fields are incorrect"})
 			return
 		}
 
-		slog.Info("from: %v, to: %v, rate: %f", r.FromCurrency, r.ToCurrency, r.Rate)
-		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST EXCHANGE"})
+		ex := model.Exchange(json)
+		odds, err := grpclient.ExchangeCurency(context.Background(), ex)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"message": err})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST EXCHANGE", "coofisient": odds})
 	}
 }

@@ -11,16 +11,16 @@ import (
 	"time"
 
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/config"
-	clientgrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
-	clientredis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
-	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/controller"
+	connGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
+	connRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/server"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
 type App struct {
-	conf   *config.Config
-	server *controller.Http
-	cmps   []remoteServers
+	conf     *config.Config
+	instance *server.Http
+	cmps     []remoteServers
 }
 
 type remoteServers struct {
@@ -74,8 +74,8 @@ func (a *App) Run() error {
 
 func (a *App) start(ctx context.Context) error {
 	storage := storage.New(a.conf.Storage)
-	clientGrpc := clientgrpc.New(a.conf.GRPCServer)
-	clientRedis := clientredis.New("redi")
+	clientGrpc := connGrpc.New(a.conf.GRPCServer)
+	clientRedis := connRedis.New(a.conf.RedisServer)
 
 	a.cmps = []remoteServers{
 		{"db-postgre", storage},
@@ -91,18 +91,18 @@ func (a *App) start(ctx context.Context) error {
 	}
 
 	//start http service
-	server := controller.New(a.conf.HTTPServer, storage, clientGrpc, clientRedis)
-	if err := server.Start(ctx); err != nil {
+	srv := server.New(a.conf.HTTPServer, storage, clientGrpc, clientRedis)
+	if err := srv.Start(ctx); err != nil {
 		return fmt.Errorf("could not initialize controller: %s", err)
 	}
-	a.server = server
+	a.instance = srv
 
 	return nil
 }
 
 func (a *App) stop(ctx context.Context) error {
 	slog.Info("process shutting down server... ")
-	a.server.Stop(ctx)
+	a.instance.Stop(ctx)
 
 	for _, client := range a.cmps {
 		slog.Info("process shutting down " + client.Name + "...")

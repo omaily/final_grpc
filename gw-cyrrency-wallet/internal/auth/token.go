@@ -27,7 +27,7 @@ type ModifierToken struct {
 
 var (
 	// ***Поднять redis или вынести в структуру добавив mutex
-	theRedis = make(map[string]PairToken)
+	// theRedis = make(map[string]PairToken)
 
 	accessKey   = []byte(os.Getenv("ACCESSSECRET"))
 	AccessToken = &ModifierToken{

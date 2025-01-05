@@ -2,7 +2,6 @@ package connector
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/omaily/final_grpc/gw-exchanger/internal/storage"
 	exchange "github.com/omaily/final_grpc/gw-exchanger/pkg/proto"
@@ -15,7 +14,7 @@ type IServiceExchange interface {
 		ctx context.Context,
 	) (rates []storage.Exchange, err error)
 
-	ExchangeRate(
+	ExchangeCurrency(
 		ctx context.Context,
 		from_currency string,
 		to_currency string,
@@ -34,7 +33,6 @@ func (con *grpcConnector) GetExchangeRates(
 	exchangeRates, _ := con.sex.ExchangeRates(ctx)
 	mExchangeRates := make(map[string]float64)
 	for _, ex := range exchangeRates {
-		slog.Info("return db", slog.String("currency", ex.Note), slog.Float64("rate", ex.Rate))
 		mExchangeRates[ex.Note] = ex.Rate
 	}
 
@@ -43,7 +41,7 @@ func (con *grpcConnector) GetExchangeRates(
 	}, nil
 }
 
-func (con *grpcConnector) GetExchangeRate(
+func (con *grpcConnector) GetExchangeCurrency(
 	ctx context.Context,
 	in *exchange.CurrencyRequest,
 ) (*exchange.CurrencyResponse, error) {
@@ -55,14 +53,12 @@ func (con *grpcConnector) GetExchangeRate(
 		return nil, status.Error(codes.InvalidArgument, "to_Currency is required")
 	}
 
-	// заглушка
-	odds, _ := con.sex.ExchangeRate(ctx, in.FromCurrency, in.ToCurrency)
-	_ = odds
+	odds, _ := con.sex.ExchangeCurrency(ctx, in.FromCurrency, in.ToCurrency)
 
 	return &exchange.CurrencyResponse{
-		FromCurrency: "from Rub",
-		ToCurrency:   "convert Bat",
-		Rate:         float64(99),
+		FromCurrency: in.FromCurrency,
+		ToCurrency:   in.ToCurrency,
+		Rate:         odds,
 	}, nil
 
 }
