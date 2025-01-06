@@ -134,3 +134,54 @@ func (st *Instance) TakeMoney(ctx context.Context, strUUID string, deposit model
 
 	return st.CheckBalance(ctx, strUUID)
 }
+
+func (st *Instance) takeMoney(tx pgx.Tx, strUUID string, deposit model.Transfer) {
+
+}
+
+func (st *Instance) ChangeMoney(ctx context.Context, strUUID string, ex model.Exchange, odds float64) error {
+	uuid := moveStringToUUID(strUUID)
+
+	tx, err := st.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		} else {
+			tx.Commit(ctx)
+		}
+	}()
+
+	// takeMoney
+	query := `UPDATE wallet SET count = wallet.count - @count WHERE user_id = @user_id and currency = @currency`
+	args := pgx.NamedArgs{
+		"user_id":  uuid,
+		"currency": ex.FromCurrency,
+		"count":    ex.Amount,
+	}
+
+	_, err = tx.Exec(ctx, query, args)
+	if err != nil {
+		return fmt.Errorf("db %w", err)
+	}
+
+	// putMoney
+	query = `INSERT INTO wallet (user_id, currency, count)
+	VALUES (@user_id, @currency, @count)
+	ON CONFLICT ON CONSTRAINT uniq_wallet_user_cur
+	DO UPDATE SET count = wallet.count + @count;`
+	args = pgx.NamedArgs{
+		"user_id":  uuid,
+		"currency": ex.ToCurrency,
+		"count":    ex.Amount * odds,
+	}
+
+	_, err = tx.Exec(ctx, query, args)
+	if err != nil {
+		return fmt.Errorf("unable to insert row: %w", err)
+	}
+
+	return nil
+}

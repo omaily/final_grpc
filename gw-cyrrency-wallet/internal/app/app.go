@@ -17,7 +17,7 @@ import (
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/storage"
 )
 
-type App struct {
+type appContext struct {
 	conf     *config.Config
 	instance *server.Http
 	cmps     []remoteServers
@@ -33,7 +33,7 @@ type ClientApplications interface {
 	Stop()
 }
 
-func New(ctx context.Context, conf *config.Config) (*App, error) {
+func New(ctx context.Context, conf *config.Config) (*appContext, error) {
 	if conf == nil {
 		return nil, errors.New("configuration files are not initialized")
 	}
@@ -48,12 +48,12 @@ func New(ctx context.Context, conf *config.Config) (*App, error) {
 		return nil, errors.New("configuration address grpc_server cannot be blank")
 	}
 
-	return &App{
+	return &appContext{
 		conf: conf,
 	}, nil
 }
 
-func (a *App) Run() error {
+func (a *appContext) Run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -72,7 +72,7 @@ func (a *App) Run() error {
 	return a.stop(ctx)
 }
 
-func (a *App) start(ctx context.Context) error {
+func (a *appContext) start(ctx context.Context) error {
 	storage := storage.New(a.conf.Storage)
 	clientGrpc := connGrpc.New(a.conf.GRPCServer)
 	clientRedis := connRedis.New(a.conf.RedisServer)
@@ -100,7 +100,7 @@ func (a *App) start(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) stop(ctx context.Context) error {
+func (a *appContext) stop(ctx context.Context) error {
 	slog.Info("process shutting down server... ")
 	a.instance.Stop(ctx)
 

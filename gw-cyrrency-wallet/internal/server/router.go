@@ -30,7 +30,7 @@ func (s *Http) secure(router *gin.Engine) {
 		gr.POST("/wallet/deposit", deposit(s.storage, &userId))
 		gr.POST("/wallet/withdraw", withdraw(s.storage, &userId))
 
-		gr.GET("/exchange/rates", rates(s.clientGrpc))
-		gr.POST("/exchange", exchange(s.clientGrpc))
+		gr.GET("/exchange/rates", rates(s.clientGrpc, s.cache))
+		gr.POST("/exchange", exchange(s.clientGrpc, s.storage, &userId))
 	}
 }

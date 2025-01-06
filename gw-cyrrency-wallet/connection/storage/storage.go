@@ -16,4 +16,5 @@ type Repository interface {
 	CheckBalance(ctx context.Context, strUUID string) (map[string]float64, error)
 	PutMoney(ctx context.Context, strUUID string, deposit model.Transfer) (map[string]float64, error)
 	TakeMoney(ctx context.Context, strUUID string, deposit model.Transfer) (map[string]float64, error)
+	ChangeMoney(ctx context.Context, strUUID string, ex model.Exchange, odds float64) error
 }

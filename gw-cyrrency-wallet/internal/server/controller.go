@@ -9,11 +9,13 @@ import (
 	connGrpc "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/grpc"
 	connRedis "github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/redis"
 	"github.com/omaily/final_grpc/gw-cyrrency-wallet/connection/storage"
+	"github.com/omaily/final_grpc/gw-cyrrency-wallet/internal/midleware"
 )
 
 type Http struct {
 	conf        *config.HTTPServer
 	conn        *http.Server
+	cache       *midleware.Cache
 	storage     storage.Repository
 	clientGrpc  connGrpc.Client
 	clientRedis connRedis.Client
@@ -24,6 +26,7 @@ func New(conf config.HTTPServer, storage storage.Repository, grpc connGrpc.Clien
 		conf:        &conf,
 		storage:     storage,
 		clientRedis: redis,
+		cache:       midleware.New(1 * time.Minute),
 		clientGrpc:  grpc,
 	}
 }

@@ -131,7 +131,7 @@ func deposit(st storage.Repository, userId *string) gin.HandlerFunc {
 
 		balance, err := st.PutMoney(c.Request.Context(), *userId, deposit)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
 			return
 		}
 
@@ -157,7 +157,7 @@ func withdraw(st storage.Repository, userId *string) gin.HandlerFunc {
 
 		balance, err := st.TakeMoney(c.Request.Context(), *userId, withdraw)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
 			return
 		}
 
@@ -165,18 +165,27 @@ func withdraw(st storage.Repository, userId *string) gin.HandlerFunc {
 	}
 }
 
-func rates(grpclient connGrpc.Client) gin.HandlerFunc {
+func rates(grpclient connGrpc.Client, cashe *midleware.Cache) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if cashe.Count() > 0 && !cashe.Expired() {
+			slog.Info("data taken from cache")
+			c.JSON(http.StatusOK, gin.H{"rates": cashe.GetAll()})
+			return
+		}
+
 		rates, err := grpclient.ExchangeRates(context.Background())
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"message": err})
+			return
 		}
 
+		cashe.BulkSet(rates)
+		slog.Info("data taken from grpc-server: exchange")
 		c.JSON(http.StatusOK, gin.H{"rates": rates})
 	}
 }
 
-func exchange(grpclient connGrpc.Client) gin.HandlerFunc {
+func exchange(grpclient connGrpc.Client, st storage.Repository, userId *string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var json midleware.Exchange
 		if err := c.ShouldBindJSON(&json); err != nil {
@@ -189,8 +198,20 @@ func exchange(grpclient connGrpc.Client) gin.HandlerFunc {
 		odds, err := grpclient.ExchangeCurency(context.Background(), ex)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"message": err})
+			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "this is handler POST EXCHANGE", "coofisient": odds})
+		if err = st.ChangeMoney(c.Request.Context(), *userId, ex, odds); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+			return
+		}
+
+		balance, err := st.CheckBalance(c.Request.Context(), *userId)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "exchange successful", "exchanged_amount": odds * ex.Amount, "new_balance": balance})
 	}
 }
