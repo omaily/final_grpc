@@ -64,13 +64,13 @@ services:
     networks:
       local-network: 
         ipv4_address: 172.16.0.13
-    # volumes: 
-    #   - redis_cache:/data
+    volumes: 
+      - redis_cache:/data
   
 
 volumes:
   postgres_data:
-  # redis_cache:
+  redis_cache:
 
 networks:
   local-network:

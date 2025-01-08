@@ -16,4 +16,9 @@ storage:
   database: "score"
   user: "user"
   pass: "puser"
-
+storage-exchang:
+  host: "db"
+  port: 5432
+  database: "exchange"
+  user: "user"
+  pass: "puser"
